@@ -4,9 +4,11 @@ let currentUser = null;
 let currentProfile = null;
 let postsData = [];
 let commentsData = [];
+let storiesData = [];
 let userLikes = new Set();
 let profilesMap = {};
 let selectedImageBase64 = '';
+let selectedStoryImageBase64 = '';
 
 const dbStatus = document.getElementById('db-status');
 const guestNav = document.getElementById('guest-nav');
@@ -14,6 +16,7 @@ const userNav = document.getElementById('user-nav');
 const newPostForm = document.getElementById('new-post-form');
 const guestComposerMsg = document.getElementById('guest-composer-msg');
 const editModal = document.getElementById('edit-modal');
+const storyModal = document.getElementById('story-modal');
 
 document.addEventListener('DOMContentLoaded', async () => {
     await initApp();
@@ -34,6 +37,7 @@ async function initApp() {
             userNav.classList.remove('hidden');
             newPostForm.classList.remove('hidden');
             guestComposerMsg.classList.add('hidden');
+            document.getElementById('btn-open-story-modal').classList.remove('hidden');
         } else {
             guestNav.classList.remove('hidden');
             userNav.classList.add('hidden');
@@ -52,7 +56,6 @@ async function initApp() {
 async function loadUserProfile() {
     let { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
     
-    // إنشاء بروفايل تلقائي إذا لم يكن موجوداً
     if (!profile) {
         const defaultUsername = currentUser.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') + '_' + Math.floor(Math.random()*100);
         const role = (currentUser.email === SUPABASE_CONFIG.ADMIN_EMAIL) ? 'admin' : 'user';
@@ -70,13 +73,39 @@ async function loadUserProfile() {
     
     if (profile.role === 'admin' || currentUser.email === SUPABASE_CONFIG.ADMIN_EMAIL) {
         currentProfile.role = 'admin';
-        document.getElementById('role-badge').classList.remove('hidden');
+        document.getElementById('btn-admin-panel').classList.remove('hidden');
     }
 }
 
 document.getElementById('btn-logout').addEventListener('click', async () => {
     await sb.auth.signOut();
-    window.location.reload();
+    window.location.href = 'login.html';
+});
+
+// اليوميات (Stories)
+document.getElementById('btn-open-story-modal').addEventListener('click', () => storyModal.classList.remove('hidden'));
+document.getElementById('btn-close-story').addEventListener('click', () => storyModal.classList.add('hidden'));
+
+document.getElementById('story-image-file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { selectedStoryImageBase64 = ev.target.result; };
+    reader.readAsDataURL(file);
+});
+
+document.getElementById('new-story-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    await sb.from('stories').insert([{
+        user_id: currentUser.id,
+        content: document.getElementById('story-content').value.trim(),
+        image_url: selectedStoryImageBase64
+    }]);
+    document.getElementById('new-story-form').reset();
+    selectedStoryImageBase64 = '';
+    storyModal.classList.add('hidden');
+    await loadAllData();
 });
 
 // اختيار صورة للمنشور
@@ -85,9 +114,7 @@ document.getElementById('post-image-file').addEventListener('change', (e) => {
     if (!file) return;
     document.getElementById('selected-file-name').textContent = file.name;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-        selectedImageBase64 = ev.target.result;
-    };
+    reader.onload = (ev) => { selectedImageBase64 = ev.target.result; };
     reader.readAsDataURL(file);
 });
 
@@ -119,27 +146,57 @@ newPostForm.addEventListener('submit', async (e) => {
 });
 
 async function loadAllData() {
-    const [postsRes, commentsRes, profilesRes] = await Promise.all([
+    const [postsRes, commentsRes, profilesRes, storiesRes] = await Promise.all([
         sb.from('posts').select('*').order('created_at', { ascending: false }),
         sb.from('comments').select('*').order('created_at', { ascending: true }),
-        sb.from('profiles').select('*')
+        sb.from('profiles').select('*'),
+        sb.from('stories').select('*').order('created_at', { ascending: false })
     ]);
 
     postsData = postsRes.data || [];
     commentsData = commentsRes.data || [];
+    storiesData = storiesRes.data || [];
     
     profilesMap = {};
     (profilesRes.data || []).forEach(p => { profilesMap[p.id] = p; });
 
-    // جلب إعجابات المستخدم الحالي لمنع الإعجاب الوهمي المتكرر
     userLikes.clear();
     if (currentUser) {
         const { data: likesData } = await sb.from('post_likes').select('post_id').eq('user_id', currentUser.id);
         (likesData || []).forEach(l => userLikes.add(l.post_id));
     }
 
+    renderStories();
     renderFeed();
 }
+
+function renderStories() {
+    const container = document.getElementById('stories-container');
+    if (!storiesData.length) {
+        container.innerHTML = '<span class="muted-text">لا توجد يوميات منشورة حالياً. كن أول من يشارك يوميته!</span>';
+        return;
+    }
+    const isAdmin = currentProfile?.role === 'admin';
+    container.innerHTML = storiesData.map(s => {
+        const author = profilesMap[s.user_id] || { full_name: 'عضو', role: 'user' };
+        const canDel = isAdmin || (currentUser && s.user_id === currentUser.id);
+        return `
+            <div class="story-card">
+                ${s.image_url ? `<img src="${s.image_url}" class="story-img">` : ''}
+                <div class="story-text">${escapeHtml(s.content)}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="muted-text" style="font-size:0.75rem; font-weight:bold;">${escapeHtml(author.full_name)} ${author.role === 'admin' ? '🛡️' : ''}</span>
+                    ${canDel ? `<button onclick="deleteStory('${s.id}')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.75rem;">حذف</button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.deleteStory = async (id) => {
+    await sb.from('stories').delete().eq('id', id);
+    await loadAllData();
+};
 
 function renderFeed() {
     const feed = document.getElementById('posts-feed');
@@ -156,8 +213,8 @@ function renderFeed() {
         const pComments = commentsData.filter(c => c.post_id === post.id);
         const authorProf = profilesMap[post.user_id];
         const avatarUrl = authorProf?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author_name)}&background=e2e8f0&color=1e293b`;
+        const authorIsAdmin = authorProf?.role === 'admin';
         
-        // صلاحيات التعديل والحذف: للأدمن على الكل، أو لصاحب المنشور على منشوره فقط
         const isOwner = currentUser && post.user_id === currentUser.id;
         const canModify = isAdmin || isOwner;
         const isLiked = userLikes.has(post.id);
@@ -168,7 +225,10 @@ function renderFeed() {
                     <div class="post-author-box">
                         <img src="${avatarUrl}" class="avatar" alt="Avatar">
                         <div>
-                            <h4 style="font-weight: 800; color: var(--text-main);">${escapeHtml(post.author_name)}</h4>
+                            <h4 style="font-weight: 800; color: var(--text-main); display:flex; align-items:center; gap:6px;">
+                                ${escapeHtml(post.author_name)}
+                                ${authorIsAdmin ? '<span class="badge badge-admin" style="font-size:0.68rem; padding:2px 8px;">أدمن 🛡️</span>' : ''}
+                            </h4>
                             <span class="muted-text">${escapeHtml(post.author_handle)}</span>
                         </div>
                     </div>
@@ -212,21 +272,18 @@ function renderFeed() {
     }).join('');
 }
 
-// نظام الإعجاب الواحد لكل مستخدم مسجل (Like / Unlike)
 window.toggleLike = async (postId, currentCount) => {
     if (!currentUser) {
-        alert('يرجى تسجيل الدخول أولاً لتتمكن من الإعجاب بالمنشورات.');
+        alert('يرجى تسجيل الدخول أولاً للإعجاب بالمنشورات.');
         window.location.href = 'login.html';
         return;
     }
 
     if (userLikes.has(postId)) {
-        // إلغاء الإعجاب
         await sb.from('post_likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
         const newCount = Math.max(0, (currentCount || 1) - 1);
         await sb.from('posts').update({ likes_count: newCount }).eq('id', postId);
     } else {
-        // تسجيل إعجاب واحد فقط
         const { error } = await sb.from('post_likes').insert([{ post_id: postId, user_id: currentUser.id }]);
         if (!error) {
             await sb.from('posts').update({ likes_count: (currentCount || 0) + 1 }).eq('id', postId);
@@ -235,7 +292,6 @@ window.toggleLike = async (postId, currentCount) => {
     await loadAllData();
 };
 
-// تعديل المنشور
 window.openEditPost = (id, content) => {
     document.getElementById('edit-post-id').value = id;
     document.getElementById('edit-post-content').value = content;
@@ -253,14 +309,12 @@ document.getElementById('edit-post-form').addEventListener('submit', async (e) =
     await loadAllData();
 });
 
-// حذف المنشور
 window.deletePost = async (id) => {
     if (!confirm('هل أنت متأكد من حذف هذا المنشور؟')) return;
     await sb.from('posts').delete().eq('id', id);
     await loadAllData();
 };
 
-// إضافة تعليق
 window.addComment = async (e, postId) => {
     e.preventDefault();
     if (!currentUser || !currentProfile) return;
@@ -274,7 +328,6 @@ window.addComment = async (e, postId) => {
     await loadAllData();
 };
 
-// حذف تعليق
 window.deleteComment = async (id) => {
     await sb.from('comments').delete().eq('id', id);
     await loadAllData();
