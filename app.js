@@ -3,7 +3,6 @@ const sb = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANO
 let currentAdmin = null;
 let postsData = [];
 let commentsData = [];
-let passwordsData = [];
 
 const dbStatus = document.getElementById('db-status');
 const adminPanel = document.getElementById('admin-panel');
@@ -40,7 +39,7 @@ async function checkSession() {
 function setAdminState(user) {
     currentAdmin = user;
     if (btnOpenLogin) btnOpenLogin.classList.add('hidden');
-    if (btnLogout) btnLogout.classList.remove('hidden');
+    if (btnLogout) logoutBtn.classList.remove('hidden');
     if (adminPanel) adminPanel.classList.remove('hidden');
     const userInfo = document.getElementById('admin-user-info');
     if (userInfo) userInfo.textContent = `المسؤول: ${user.email}`;
@@ -50,7 +49,7 @@ function setAdminState(user) {
 function clearAdminState() {
     currentAdmin = null;
     if (btnOpenLogin) btnOpenLogin.classList.remove('hidden');
-    if (btnLogout) btnLogout.classList.add('hidden');
+    if (btnLogout) logoutBtn.classList.add('hidden');
     if (adminPanel) adminPanel.classList.add('hidden');
 }
 
@@ -68,7 +67,7 @@ if (loginForm) {
         const { data, error } = await sb.auth.signInWithPassword({ email, password });
         
         if (error) {
-            loginErrorMsg.textContent = `خطأ في الدخول: ${error.message}`;
+            loginErrorMsg.textContent = `فشل الدخول: تأكد من الإيميل وباسورد الـ Auth.`;
             loginErrorMsg.classList.remove('hidden');
             return;
         }
@@ -81,7 +80,7 @@ if (loginForm) {
 }
 
 if (btnLogout) {
-    logoutBtn.addEventListener('click', async () => {
+    btnLogout.addEventListener('click', async () => {
         await sb.auth.signOut();
         clearAdminState();
         loadData();
@@ -101,7 +100,6 @@ async function loadData() {
     if (statPosts) statPosts.textContent = postsData.length;
     
     renderFeed();
-    if (currentAdmin) renderAdminPosts();
 }
 
 function renderFeed() {
@@ -116,28 +114,28 @@ function renderFeed() {
     feed.innerHTML = postsData.map(post => {
         const pComments = commentsData.filter(c => c.post_id === post.id);
         return `
-            <div class="post-card">
-                <div class="post-header">
+            <div class="post-card" style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:10px; padding:16px; margin-bottom:14px;">
+                <div class="post-header" style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <div>
-                        <h4>${escapeHtml(post.author_name)}</h4>
+                        <h4 style="color:#fff;">${escapeHtml(post.author_name)}</h4>
                         <span class="muted-text">${escapeHtml(post.author_handle)}</span>
                     </div>
                     <span class="badge badge-warning">${escapeHtml(post.category)}</span>
                 </div>
-                <p style="margin: 10px 0;">${escapeHtml(post.content)}</p>
-                <div class="post-actions">
-                    <button class="action-btn" onclick="likePost('${post.id}', ${post.likes_count})">❤️ إعجاب (${post.likes_count})</button>
-                    <span>💬 تعليقات (${pComments.length})</span>
+                <p style="margin: 10px 0; color:#f8fafc;">${escapeHtml(post.content)}</p>
+                <div class="post-actions" style="display:flex; gap:10px; border-top:1px solid var(--border-color); padding-top:10px;">
+                    <button class="action-btn" onclick="likePost('${post.id}', ${post.likes_count})" style="background:transparent; border:1px solid var(--border-color); color:#fff; padding:5px 10px; border-radius:6px; cursor:pointer;">❤️ إعجاب (${post.likes_count})</button>
+                    <span style="color:var(--text-secondary);">💬 تعليقات (${pComments.length})</span>
                 </div>
-                <div class="comments-box">
+                <div class="comments-box" style="margin-top:10px; border-top:1px dashed var(--border-color); padding-top:10px;">
                     ${pComments.map(c => `
-                        <div class="comment-item">
+                        <div class="comment-item" style="background:var(--bg-body); padding:6px 10px; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between;">
                             <span><strong>${escapeHtml(c.commenter_name)}:</strong> ${escapeHtml(c.comment_text)}</span>
                             ${currentAdmin ? `<button class="btn btn-sm btn-danger" onclick="deleteComment('${c.id}')">حذف</button>` : ''}
                         </div>
                     `).join('')}
-                    <form class="comment-form" onsubmit="addComment(event, '${post.id}')">
-                        <input type="text" name="cname" placeholder="اسمك" required>
+                    <form class="comment-form" onsubmit="addComment(event, '${post.id}')" style="display:flex; gap:6px; margin-top:8px;">
+                        <input type="text" name="cname" placeholder="اسمك" required style="max-width:120px;">
                         <input type="text" name="ctext" placeholder="اكتب تعليقاً..." required>
                         <button type="submit" class="btn btn-sm btn-primary">إرسال</button>
                     </form>
@@ -188,7 +186,7 @@ window.deleteComment = async (id) => {
 async function loadPasswords() {
     if (!currentAdmin) return;
     const { data } = await sb.from('admin_passwords').select('*').order('created_at', { ascending: false });
-    passwordsData = data || [];
+    const passwordsData = data || [];
     const statPass = document.getElementById('stat-passwords');
     if (statPass) statPass.textContent = passwordsData.length;
     
