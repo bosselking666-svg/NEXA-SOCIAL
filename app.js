@@ -1,17 +1,24 @@
 const sb = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
 
-let currentAdmin = null;
+let currentUser = null;
 let postsData = [];
 let commentsData = [];
+let isSignUpMode = false;
 
 const dbStatus = document.getElementById('db-status');
-const adminPanel = document.getElementById('admin-panel');
-const btnOpenLogin = document.getElementById('btn-open-admin-login');
-const btnLogout = document.getElementById('btn-admin-logout');
-const loginModal = document.getElementById('admin-login-modal');
-const btnCloseLogin = document.getElementById('btn-close-login');
-const loginForm = document.getElementById('admin-login-form');
-const loginErrorMsg = document.getElementById('login-error-msg');
+const btnOpenLogin = document.getElementById('btn-open-login');
+const btnLogout = document.getElementById('btn-logout');
+const authModal = document.getElementById('auth-modal');
+const btnCloseAuth = document.getElementById('btn-close-auth');
+const authForm = document.getElementById('auth-form');
+const authModalTitle = document.getElementById('auth-modal-title');
+const authSubmitBtn = document.getElementById('auth-submit-btn');
+const toggleAuthMode = document.getElementById('toggle-auth-mode');
+const authError = document.getElementById('auth-error');
+
+const editModal = document.getElementById('edit-modal');
+const btnCloseEdit = document.getElementById('btn-close-edit');
+const editPostForm = document.getElementById('edit-post-form');
 
 document.addEventListener('DOMContentLoaded', async () => {
     await checkSession();
@@ -23,70 +30,86 @@ async function checkSession() {
         const { data: { session }, error } = await sb.auth.getSession();
         if (error) throw error;
         
-        if (session && session.user) {
-            setAdminState(session.user);
-        } else {
-            clearAdminState();
-        }
-        dbStatus.textContent = 'متصل بقاعدة البيانات';
+        currentUser = session?.user || null;
+        updateAuthUI();
+        dbStatus.textContent = 'متصل بنجاح';
         dbStatus.className = 'badge badge-success';
     } catch (err) {
-        dbStatus.textContent = 'خطأ في الاتصال';
+        dbStatus.textContent = 'خطأ بالاتصال';
         dbStatus.className = 'badge badge-danger';
     }
 }
 
-function setAdminState(user) {
-    currentAdmin = user;
-    if (btnOpenLogin) btnOpenLogin.classList.add('hidden');
-    if (btnLogout) logoutBtn.classList.remove('hidden');
-    if (adminPanel) adminPanel.classList.remove('hidden');
-    const userInfo = document.getElementById('admin-user-info');
-    if (userInfo) userInfo.textContent = `المسؤول: ${user.email}`;
-    loadPasswords();
+function updateAuthUI() {
+    if (currentUser) {
+        btnOpenLogin.textContent = currentUser.email.split('@')[0];
+        btnLogout.classList.remove('hidden');
+    } else {
+        btnOpenLogin.textContent = 'حساب / دخول';
+        btnLogout.classList.add('hidden');
+    }
 }
 
-function clearAdminState() {
-    currentAdmin = null;
-    if (btnOpenLogin) btnOpenLogin.classList.remove('hidden');
-    if (btnLogout) logoutBtn.classList.add('hidden');
-    if (adminPanel) adminPanel.classList.add('hidden');
-}
+// Modal Controls
+btnOpenLogin.addEventListener('click', () => {
+    if (currentUser) return;
+    authModal.classList.remove('hidden');
+});
+btnCloseAuth.addEventListener('click', () => authModal.classList.add('hidden'));
+btnCloseEdit.addEventListener('click', () => editModal.classList.add('hidden'));
 
-if (btnOpenLogin) btnOpenLogin.addEventListener('click', () => loginModal.classList.remove('hidden'));
-if (btnCloseLogin) btnCloseLogin.addEventListener('click', () => loginModal.classList.add('hidden'));
+// Toggle Login / Register
+toggleAuthMode.addEventListener('click', () => {
+    isSignUpMode = !isSignUpMode;
+    if (isSignUpMode) {
+        authModalTitle.textContent = 'إنشاء حساب جديد';
+        authSubmitBtn.textContent = 'تسجيل الحساب';
+        document.getElementById('auth-switch-text').innerHTML = 'لديك حساب بالفعل؟ <span id="toggle-auth-mode">تسجيل الدخول</span>';
+    } else {
+        authModalTitle.textContent = 'تسجيل الدخول';
+        authSubmitBtn.textContent = 'دخول';
+        document.getElementById('auth-switch-text').innerHTML = 'ليس لديك حساب؟ <span id="toggle-auth-mode">إنشاء حساب جديد</span>';
+    }
+    // إعادة ربط الحدث للتبديل
+    document.getElementById('toggle-auth-mode').addEventListener('click', arguments.callee);
+});
 
-if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        loginErrorMsg.classList.add('hidden');
-        
-        const email = document.getElementById('login-email').value.trim();
-        const password = document.getElementById('login-password').value;
+// Auth Form Submit (Login & Register)
+authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    authError.classList.add('hidden');
+    
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
 
-        const { data, error } = await sb.auth.signInWithPassword({ email, password });
-        
-        if (error) {
-            loginErrorMsg.textContent = `فشل الدخول: تأكد من الإيميل وباسورد الـ Auth.`;
-            loginErrorMsg.classList.remove('hidden');
-            return;
-        }
+    let res;
+    if (isSignUpMode) {
+        res = await sb.auth.signUp({ email, password });
+    } else {
+        res = await sb.auth.signInWithPassword({ email, password });
+    }
 
-        loginModal.classList.add('hidden');
-        loginForm.reset();
-        setAdminState(data.user);
-        loadData();
-    });
-}
+    if (res.error) {
+        authError.textContent = `خطأ: ${res.error.message}`;
+        authError.classList.remove('hidden');
+        return;
+    }
 
-if (btnLogout) {
-    btnLogout.addEventListener('click', async () => {
-        await sb.auth.signOut();
-        clearAdminState();
-        loadData();
-    });
-}
+    authModal.classList.add('hidden');
+    authForm.reset();
+    await checkSession();
+    await loadData();
+    alert(isSignUpMode ? 'تم إنشاء الحساب بنجاح! يمكنك الدخول الآن.' : 'مرحباً بك مجدداً!');
+});
 
+btnLogout.addEventListener('click', async () => {
+    await sb.auth.signOut();
+    currentUser = null;
+    updateAuthUI();
+    await loadData();
+});
+
+// Load Posts & Comments
 async function loadData() {
     const [postsRes, commentsRes] = await Promise.all([
         sb.from('posts').select('*').order('created_at', { ascending: false }),
@@ -95,10 +118,6 @@ async function loadData() {
 
     postsData = postsRes.data || [];
     commentsData = commentsRes.data || [];
-    
-    const statPosts = document.getElementById('stat-posts');
-    if (statPosts) statPosts.textContent = postsData.length;
-    
     renderFeed();
 }
 
@@ -107,35 +126,43 @@ function renderFeed() {
     if (!feed) return;
 
     if (!postsData.length) {
-        feed.innerHTML = '<div class="muted-text">لا توجد منشورات حالياً.</div>';
+        feed.innerHTML = '<div class="muted-text" style="text-align:center; padding:20px;">لا توجد منشورات حالياً. كن أول المشاركين!</div>';
         return;
     }
 
     feed.innerHTML = postsData.map(post => {
         const pComments = commentsData.filter(c => c.post_id === post.id);
+        const isOwner = currentUser && (currentUser.email === 'boss.elking666@gmail.com' || post.author_name); // صلاحية الحذف والتعديل
+
         return `
-            <div class="post-card" style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:10px; padding:16px; margin-bottom:14px;">
-                <div class="post-header" style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <div class="post-card">
+                <div class="post-header">
                     <div>
-                        <h4 style="color:#fff;">${escapeHtml(post.author_name)}</h4>
+                        <h4 style="font-weight: 700; color: #fff;">${escapeHtml(post.author_name)}</h4>
                         <span class="muted-text">${escapeHtml(post.author_handle)}</span>
                     </div>
-                    <span class="badge badge-warning">${escapeHtml(post.category)}</span>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <span class="badge badge-warning">${escapeHtml(post.category)}</span>
+                        ${currentUser ? `
+                            <button class="btn btn-sm btn-secondary" onclick="openEditPost('${post.id}', \`${escapeHtml(post.content)}\`)">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deletePost('${post.id}')">🗑️</button>
+                        ` : ''}
+                    </div>
                 </div>
-                <p style="margin: 10px 0; color:#f8fafc;">${escapeHtml(post.content)}</p>
-                <div class="post-actions" style="display:flex; gap:10px; border-top:1px solid var(--border-color); padding-top:10px;">
-                    <button class="action-btn" onclick="likePost('${post.id}', ${post.likes_count})" style="background:transparent; border:1px solid var(--border-color); color:#fff; padding:5px 10px; border-radius:6px; cursor:pointer;">❤️ إعجاب (${post.likes_count})</button>
-                    <span style="color:var(--text-secondary);">💬 تعليقات (${pComments.length})</span>
+                <div class="post-body">${escapeHtml(post.content)}</div>
+                <div class="post-actions">
+                    <button class="action-btn" onclick="likePost('${post.id}', ${post.likes_count})">❤️ إعجاب (${post.likes_count})</button>
+                    <span class="muted-text" style="display:flex; align-items:center; font-size:0.85rem;">💬 تعليقات (${pComments.length})</span>
                 </div>
-                <div class="comments-box" style="margin-top:10px; border-top:1px dashed var(--border-color); padding-top:10px;">
+                <div class="comments-box">
                     ${pComments.map(c => `
-                        <div class="comment-item" style="background:var(--bg-body); padding:6px 10px; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between;">
+                        <div class="comment-item">
                             <span><strong>${escapeHtml(c.commenter_name)}:</strong> ${escapeHtml(c.comment_text)}</span>
-                            ${currentAdmin ? `<button class="btn btn-sm btn-danger" onclick="deleteComment('${c.id}')">حذف</button>` : ''}
+                            ${currentUser ? `<button class="btn btn-sm btn-danger" onclick="deleteComment('${c.id}')" style="padding:2px 6px; font-size:0.7rem;">حذف</button>` : ''}
                         </div>
                     `).join('')}
-                    <form class="comment-form" onsubmit="addComment(event, '${post.id}')" style="display:flex; gap:6px; margin-top:8px;">
-                        <input type="text" name="cname" placeholder="اسمك" required style="max-width:120px;">
+                    <form class="comment-form" onsubmit="addComment(event, '${post.id}')">
+                        <input type="text" name="cname" placeholder="اسمك" required style="max-width: 120px;">
                         <input type="text" name="ctext" placeholder="اكتب تعليقاً..." required>
                         <button type="submit" class="btn btn-sm btn-primary">إرسال</button>
                     </form>
@@ -145,21 +172,42 @@ function renderFeed() {
     }).join('');
 }
 
+// Post Actions (Create, Edit, Delete)
 const newPostForm = document.getElementById('new-post-form');
-if (newPostForm) {
-    newPostForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const payload = {
-            author_name: document.getElementById('post-author').value.trim(),
-            author_handle: document.getElementById('post-handle').value.trim(),
-            category: document.getElementById('post-category').value,
-            content: document.getElementById('post-content').value.trim()
-        };
-        await sb.from('posts').insert([payload]);
-        newPostForm.reset();
-        await loadData();
-    });
-}
+newPostForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+        author_name: document.getElementById('post-author').value.trim(),
+        author_handle: document.getElementById('post-handle').value.trim(),
+        category: document.getElementById('post-category').value,
+        content: document.getElementById('post-content').value.trim()
+    };
+    await sb.from('posts').insert([payload]);
+    newPostForm.reset();
+    await loadData();
+});
+
+window.openEditPost = (id, content) => {
+    document.getElementById('edit-post-id').value = id;
+    document.getElementById('edit-post-content').value = content;
+    editModal.classList.remove('hidden');
+};
+
+editPostForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-post-id').value;
+    const content = document.getElementById('edit-post-content').value.trim();
+    
+    await sb.from('posts').update({ content }).eq('id', id);
+    editModal.classList.add('hidden');
+    await loadData();
+});
+
+window.deletePost = async (id) => {
+    if (!confirm('هل أنت متأكد من حذف هذا المنشور؟')) return;
+    await sb.from('posts').delete().eq('id', id);
+    await loadData();
+};
 
 window.likePost = async (id, currentLikes) => {
     await sb.from('posts').update({ likes_count: currentLikes + 1 }).eq('id', id);
@@ -181,55 +229,6 @@ window.addComment = async (e, postId) => {
 window.deleteComment = async (id) => {
     await sb.from('comments').delete().eq('id', id);
     await loadData();
-};
-
-async function loadPasswords() {
-    if (!currentAdmin) return;
-    const { data } = await sb.from('admin_passwords').select('*').order('created_at', { ascending: false });
-    const passwordsData = data || [];
-    const statPass = document.getElementById('stat-passwords');
-    if (statPass) statPass.textContent = passwordsData.length;
-    
-    const tbody = document.getElementById('passwords-table-body');
-    if (!tbody) return;
-    
-    if (!passwordsData.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="muted-text">لا توجد كلمات مرورية محفوظة.</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = passwordsData.map(item => `
-        <tr>
-            <td><strong>${escapeHtml(item.service_name)}</strong></td>
-            <td>${escapeHtml(item.account_identifier || '-')}</td>
-            <td><code class="secret-code">${escapeHtml(item.secret_password)}</code></td>
-            <td>${escapeHtml(item.access_level)}</td>
-            <td>${escapeHtml(item.notes || '-')}</td>
-            <td><button class="btn btn-sm btn-danger" onclick="deletePassword('${item.id}')">حذف</button></td>
-        </tr>
-    `).join('');
-}
-
-const passwordForm = document.getElementById('password-form');
-if (passwordForm) {
-    passwordForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const payload = {
-            service_name: document.getElementById('pass-service').value.trim(),
-            account_identifier: document.getElementById('pass-identifier').value.trim(),
-            secret_password: document.getElementById('pass-secret').value,
-            access_level: document.getElementById('pass-level').value,
-            notes: document.getElementById('pass-notes').value.trim()
-        };
-        await sb.from('admin_passwords').insert([payload]);
-        passwordForm.reset();
-        await loadPasswords();
-    });
-}
-
-window.deletePassword = async (id) => {
-    await sb.from('admin_passwords').delete().eq('id', id);
-    await loadPasswords();
 };
 
 function escapeHtml(str) {
