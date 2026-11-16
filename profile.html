@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تعديل الملف الشخصي | Nexa Social</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="container nav-content">
+            <a href="index.html" class="brand">
+                <span class="brand-dot"></span>
+                <h1>Nexa Social</h1>
+            </a>
+            <a href="index.html" class="btn btn-secondary btn-sm">← العودة للمجتمع</a>
+        </div>
+    </header>
+
+    <div class="auth-container" style="max-width: 540px;">
+        <div class="card">
+            <h2 style="margin-bottom: 16px;">تخصيص الملف الشخصي</h2>
+            <div id="prof-alert" class="alert hidden"></div>
+
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img id="avatar-preview" src="https://ui-avatars.com/api/?name=User&background=4f46e5&color=fff" class="avatar-lg" alt="Avatar">
+                <div style="margin-top: 10px;">
+                    <label for="avatar-file" class="btn btn-outline btn-sm" style="cursor:pointer;">📷 تغيير الصورة الشخصية</label>
+                    <input type="file" id="avatar-file" accept="image/*" class="hidden">
+                </div>
+            </div>
+
+            <form id="profile-form">
+                <div class="form-group">
+                    <label>الاسم المعروض</label>
+                    <input type="text" id="prof-name" required>
+                </div>
+                <div class="form-group">
+                    <label>اسم المستخدم (Username)</label>
+                    <input type="text" id="prof-username" disabled style="background:#e2e8f0; cursor:not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>النبذة التعريفية (Bio)</label>
+                    <textarea id="prof-bio" rows="3" placeholder="اكتب نبذة قصيرة عنك..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">حفظ التغييرات</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        const sb = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
+        let currentUser = null;
+        let currentAvatarUrl = '';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentUser = session.user;
+
+            const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+            if (profile) {
+                document.getElementById('prof-name').value = profile.full_name || '';
+                document.getElementById('prof-username').value = '@' + (profile.username || '');
+                document.getElementById('prof-bio').value = profile.bio || '';
+                if (profile.avatar_url) {
+                    currentAvatarUrl = profile.avatar_url;
+                    document.getElementById('avatar-preview').src = profile.avatar_url;
+                }
+            }
+        });
+
+        // تحويل الصورة المختارة لمعاينة وحفظ
+        document.getElementById('avatar-file').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                currentAvatarUrl = ev.target.result;
+                document.getElementById('avatar-preview').src = currentAvatarUrl;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('profile-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fullName = document.getElementById('prof-name').value.trim();
+            const bio = document.getElementById('prof-bio').value.trim();
+
+            const { error } = await sb.from('profiles').update({
+                full_name: fullName,
+                bio: bio,
+                avatar_url: currentAvatarUrl
+            }).eq('id', currentUser.id);
+
+            const alertBox = document.getElementById('prof-alert');
+            if (error) {
+                alertBox.textContent = 'حدث خطأ أثناء الحفظ: ' + error.message;
+                alertBox.className = 'alert alert-error';
+            } else {
+                alertBox.textContent = 'تم تحديث ملفك الشخصي بنجاح!';
+                alertBox.className = 'alert alert-success';
+            }
+            alertBox.classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
