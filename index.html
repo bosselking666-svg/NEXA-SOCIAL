@@ -21,8 +21,9 @@
                     <a href="login.html" class="btn btn-outline btn-sm">تسجيل الدخول</a>
                     <a href="register.html" class="btn btn-primary btn-sm">إنشاء حساب</a>
                 </div>
-                <div id="user-nav" class="hidden" style="display:flex; align-items:center; gap:8px;">
-                    <span id="role-badge" class="badge badge-admin hidden">أدمن</span>
+                <div id="user-nav" class="hidden" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <a href="admin.html" id="btn-admin-panel" class="btn btn-sm badge-admin hidden">🛡️ لوحة الأدمن</a>
+                    <a href="friends.html" class="btn btn-secondary btn-sm">👥 الأصدقاء والرسائل</a>
                     <a href="profile.html" class="btn btn-secondary btn-sm">👤 <span id="nav-username">حسابي</span></a>
                     <button id="btn-logout" class="btn btn-danger btn-sm">خروج</button>
                 </div>
@@ -32,13 +33,24 @@
 
     <main class="container">
 
-        <!-- صندوق النشر (يظهر للمسجلين فقط أو بتنبيه للزوار) -->
+        <!-- قسم اليوميات المشتركة (Stories) -->
+        <section class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3>✨ يوميات المجتمع (Stories)</h3>
+                <button id="btn-open-story-modal" class="btn btn-primary btn-sm hidden">+ أضف يوميتك</button>
+            </div>
+            <div id="stories-container" class="stories-bar">
+                <span class="muted-text">جاري تحميل اليوميات...</span>
+            </div>
+        </section>
+
+        <!-- صندوق نشر منشور جديد -->
         <section class="card" id="composer-section">
             <div id="guest-composer-msg" class="alert alert-error hidden">
-                يرجى <a href="login.html" style="color:var(--primary); font-weight:bold;">تسجيل الدخول</a> أو <a href="register.html" style="color:var(--primary); font-weight:bold;">إنشاء حساب</a> لتتمكن من النشر والتفاعل والإعجاب.
+                يرجى <a href="login.html" style="color:var(--primary); font-weight:bold;">تسجيل الدخول</a> أو <a href="register.html" style="color:var(--primary); font-weight:bold;">إنشاء حساب جديد</a> لمشاركة المنشورات واليوميات وإضافة الأصدقاء.
             </div>
             <form id="new-post-form" class="hidden">
-                <h3 style="margin-bottom: 12px;">شارك فكرتك أو صورتك مع المجتمع</h3>
+                <h3 style="margin-bottom: 12px;">شارك منشوراً مع المجتمع</h3>
                 <textarea id="post-content" rows="3" placeholder="ما الذي يدور في ذهنك؟..." required></textarea>
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 10px;">
@@ -47,7 +59,7 @@
                             <option value="عام">عام</option>
                             <option value="تقنية">تقنية</option>
                             <option value="نقاش">نقاش</option>
-                            <option value="صور">صور ويوميات</option>
+                            <option value="يوميات">يوميات</option>
                         </select>
                         <label for="post-image-file" class="btn btn-secondary btn-sm" style="cursor:pointer;">
                             📷 إرفاق صورة
@@ -66,6 +78,25 @@
         </section>
 
     </main>
+
+    <!-- نافذة إضافة يومية جديدة -->
+    <div id="story-modal" class="modal hidden">
+        <div class="modal-card">
+            <button class="modal-close" id="btn-close-story">&times;</button>
+            <h3 style="margin-bottom: 14px;">مشاركة يومية جديدة</h3>
+            <form id="new-story-form">
+                <div class="form-group">
+                    <label>نص اليومية أو اللحظة</label>
+                    <textarea id="story-content" rows="3" placeholder="اكتب يوميتك هنا..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="story-image-file" class="btn btn-secondary btn-sm" style="cursor:pointer;">📷 اختيار صورة لليومية (اختياري)</label>
+                    <input type="file" id="story-image-file" accept="image/*" class="hidden">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">نشر اليومية للجميع</button>
+            </form>
+        </div>
+    </div>
 
     <!-- نافذة تعديل المنشور -->
     <div id="edit-modal" class="modal hidden">
