@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexa Social | المجتمع التفاعلي</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="container nav-content">
+            <a href="index.html" class="brand">
+                <span class="brand-dot"></span>
+                <h1>Nexa Social</h1>
+            </a>
+            <div class="nav-controls">
+                <span id="db-status" class="badge badge-warning">جاري الاتصال...</span>
+                <div id="guest-nav">
+                    <a href="login.html" class="btn btn-outline btn-sm">تسجيل الدخول</a>
+                    <a href="register.html" class="btn btn-primary btn-sm">إنشاء حساب</a>
+                </div>
+                <div id="user-nav" class="hidden" style="display:flex; align-items:center; gap:8px;">
+                    <span id="role-badge" class="badge badge-admin hidden">أدمن</span>
+                    <a href="profile.html" class="btn btn-secondary btn-sm">👤 <span id="nav-username">حسابي</span></a>
+                    <button id="btn-logout" class="btn btn-danger btn-sm">خروج</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- صندوق النشر (يظهر للمسجلين فقط أو بتنبيه للزوار) -->
+        <section class="card" id="composer-section">
+            <div id="guest-composer-msg" class="alert alert-error hidden">
+                يرجى <a href="login.html" style="color:var(--primary); font-weight:bold;">تسجيل الدخول</a> أو <a href="register.html" style="color:var(--primary); font-weight:bold;">إنشاء حساب</a> لتتمكن من النشر والتفاعل والإعجاب.
+            </div>
+            <form id="new-post-form" class="hidden">
+                <h3 style="margin-bottom: 12px;">شارك فكرتك أو صورتك مع المجتمع</h3>
+                <textarea id="post-content" rows="3" placeholder="ما الذي يدور في ذهنك؟..." required></textarea>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <select id="post-category" style="max-width: 140px;">
+                            <option value="عام">عام</option>
+                            <option value="تقنية">تقنية</option>
+                            <option value="نقاش">نقاش</option>
+                            <option value="صور">صور ويوميات</option>
+                        </select>
+                        <label for="post-image-file" class="btn btn-secondary btn-sm" style="cursor:pointer;">
+                            📷 إرفاق صورة
+                        </label>
+                        <input type="file" id="post-image-file" accept="image/*" class="hidden">
+                        <span id="selected-file-name" class="muted-text"></span>
+                    </div>
+                    <button type="submit" id="btn-submit-post" class="btn btn-primary">نشر الآن</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- موجز المنشورات -->
+        <section id="posts-feed">
+            <div class="muted-text" style="text-align: center; padding: 30px;">جاري تحميل منشورات المجتمع...</div>
+        </section>
+
+    </main>
+
+    <!-- نافذة تعديل المنشور -->
+    <div id="edit-modal" class="modal hidden">
+        <div class="modal-card">
+            <button class="modal-close" id="btn-close-edit">&times;</button>
+            <h3 style="margin-bottom: 16px;">تعديل المنشور</h3>
+            <form id="edit-post-form">
+                <input type="hidden" id="edit-post-id">
+                <div class="form-group">
+                    <label>محتوى المنشور</label>
+                    <textarea id="edit-post-content" rows="4" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">حفظ التعديلات</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
