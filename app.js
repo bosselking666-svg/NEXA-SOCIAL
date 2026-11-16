@@ -50,7 +50,6 @@ function updateAuthUI() {
     }
 }
 
-// Modal Handlers
 btnOpenAuth.addEventListener('click', () => {
     if (currentUser) return;
     authModal.classList.remove('hidden');
@@ -58,21 +57,32 @@ btnOpenAuth.addEventListener('click', () => {
 btnCloseAuth.addEventListener('click', () => authModal.classList.add('hidden'));
 btnCloseEdit.addEventListener('click', () => editModal.classList.add('hidden'));
 
-// Switch Login <-> Register
 toggleAuthMode.addEventListener('click', () => {
     isSignUpMode = !isSignUpMode;
     if (isSignUpMode) {
         authModalTitle.textContent = 'إنشاء حساب جديد في المجتمع';
         authSubmitBtn.textContent = 'إتمام التسجيل';
-        document.getElementById('auth-switch-text').innerHTML = 'لديك حساب بالفعل؟ <span id="toggle-auth-toggle">تسجيل الدخول</span>';
+        document.getElementById('auth-switch-text').innerHTML = 'لديك حساب بالفعل؟ <span id="toggle-auth-mode" style="color:var(--primary); cursor:pointer; font-weight:700;" onclick="switchAuthMode()">تسجيل الدخول</span>';
     } else {
         authModalTitle.textContent = 'تسجيل الدخول';
         authSubmitBtn.textContent = 'تسجيل الدخول';
-        document.getElementById('auth-switch-text').innerHTML = 'ليس لديك حساب؟ <span id="toggle-auth-toggle">انضم إلينا بإنشاء حساب جديد</span>';
+        document.getElementById('auth-switch-text').innerHTML = 'ليس لديك حساب؟ <span id="toggle-auth-mode" style="color:var(--primary); cursor:pointer; font-weight:700;" onclick="switchAuthMode()">انضم إلينا بإنشاء حساب جديد</span>';
     }
 });
 
-// Auth Submit (Login / Register)
+window.switchAuthMode = () => {
+    isSignUpMode = !isSignUpMode;
+    if (isSignUpMode) {
+        authModalTitle.textContent = 'إنشاء حساب جديد في المجتمع';
+        authSubmitBtn.textContent = 'إتمام التسجيل';
+        document.getElementById('auth-switch-text').innerHTML = 'لديك حساب بالفعل؟ <span style="color:var(--primary); cursor:pointer; font-weight:700;" onclick="switchAuthMode()">تسجيل الدخول</span>';
+    } else {
+        authModalTitle.textContent = 'تسجيل الدخول';
+        authSubmitBtn.textContent = 'تسجيل الدخول';
+        document.getElementById('auth-switch-text').innerHTML = 'ليس لديك حساب؟ <span style="color:var(--primary); cursor:pointer; font-weight:700;" onclick="switchAuthMode()">انضم إلينا بإنشاء حساب جديد</span>';
+    }
+};
+
 authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     authError.classList.add('hidden');
@@ -107,7 +117,6 @@ btnLogout.addEventListener('click', async () => {
     await loadData();
 });
 
-// Data Loading
 async function loadData() {
     const [postsRes, commentsRes] = await Promise.all([
         sb.from('posts').select('*').order('created_at', { ascending: false }),
@@ -132,7 +141,7 @@ function renderFeed() {
 
     feed.innerHTML = postsData.map(post => {
         const pComments = commentsData.filter(c => c.post_id === post.id);
-        const canManage = currentUser !== null; // يتيح للأعضاء المسجلين والأدمن التحكم بالمنشورات
+        const canManage = currentUser !== null;
 
         return `
             <div class="post-card">
@@ -172,7 +181,6 @@ function renderFeed() {
     }).join('');
 }
 
-// Post Actions
 const newPostForm = document.getElementById('new-post-form');
 newPostForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -201,7 +209,7 @@ editPostForm.addEventListener('submit', async (e) => {
     await sb.from('posts').update({ content }).eq('id', id);
     editModal.classList.add('hidden');
     await loadData();
-});
+};
 
 window.deletePost = async (id) => {
     if (!confirm('هل أنت متأكد من حذف هذا المنشور نهائياً؟')) return;
