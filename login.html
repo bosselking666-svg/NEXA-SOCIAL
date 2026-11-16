@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول | Nexa Social</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+    <div class="auth-container">
+        <div class="card">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <a href="index.html" style="text-decoration:none; color:var(--primary); font-weight:900; font-size:1.5rem;">Nexa Social</a>
+                <p class="muted-text" style="margin-top: 6px;">مرحباً بعودتك! سجل دخولك للمتابعة</p>
+            </div>
+
+            <div id="login-alert" class="alert hidden"></div>
+
+            <!-- نموذج الدخول بكلمة المرور -->
+            <form id="login-form">
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <input type="email" id="login-email" placeholder="example@mail.com" required>
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" id="btn-login" class="btn btn-primary btn-block">تسجيل الدخول</button>
+            </form>
+
+            <div style="margin: 18px 0; text-align: center; border-top: 1px solid var(--border-color); padding-top: 14px;">
+                <p class="muted-text" style="margin-bottom: 10px;">أو سجل الدخول عبر رمز التحقق السريع (OTP)</p>
+                <button type="button" id="btn-send-otp" class="btn btn-outline btn-block btn-sm">إرسال رمز OTP إلى بريدي</button>
+            </div>
+
+            <!-- نموذج إدخال OTP -->
+            <form id="otp-verify-form" class="hidden" style="margin-top: 14px;">
+                <div class="form-group">
+                    <label>أدخل رمز التحقق (OTP) المرسل لبريدك</label>
+                    <input type="text" id="otp-code" placeholder="123456" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">تأكيد الرمز والدخول</button>
+            </form>
+
+            <p style="text-align: center; margin-top: 20px; font-size: 0.9rem;">
+                ليس لديك حساب؟ <a href="register.html" style="color: var(--primary); font-weight: 700;">إنشاء حساب جديد</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        const sb = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
+        const loginAlert = document.getElementById('login-alert');
+
+        function showAlert(msg, isError = true) {
+            loginAlert.textContent = msg;
+            loginAlert.className = isError ? 'alert alert-error' : 'alert alert-success';
+            loginAlert.classList.remove('hidden');
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            const { data, error } = await sb.auth.signInWithPassword({ email, password });
+            if (error) {
+                showAlert('خطأ في الدخول: تأكد من البريد وكلمة المرور وتأكيد الحساب.');
+                return;
+            }
+            window.location.href = 'index.html';
+        });
+
+        // إرسال OTP للبريد الإلكتروني
+        document.getElementById('btn-send-otp').addEventListener('click', async () => {
+            const email = document.getElementById('login-email').value.trim();
+            if (!email) {
+                showAlert('يرجى كتابة بريدك الإلكتروني أولاً في خانة البريد.');
+                return;
+            }
+            const { error } = await sb.auth.signInWithOtp({ email });
+            if (error) {
+                showAlert('فشل إرسال الرمز: ' + error.message);
+                return;
+            }
+            showAlert('تم إرسال رمز التحقق OTP إلى بريدك الإلكتروني!', false);
+            document.getElementById('otp-verify-form').classList.remove('hidden');
+        });
+
+        // التحقق من OTP
+        document.getElementById('otp-verify-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const token = document.getElementById('otp-code').value.trim();
+
+            const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+            if (error) {
+                showAlert('رمز التحقق غير صحيح أو منتهي الصلاحية.');
+                return;
+            }
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>
