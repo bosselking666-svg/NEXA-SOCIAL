@@ -25,7 +25,6 @@
 
     <main class="container" style="padding-top: 24px;">
 
-        <!-- شريط إحصائيات المجتمع الواسع -->
         <section class="community-stats">
             <div class="stat-item">
                 <h4 id="stat-posts-count">0</h4>
@@ -41,7 +40,6 @@
             </div>
         </section>
 
-        <!-- صندوق نشر محتوى جديد -->
         <section class="composer-card">
             <h3>ما الذي يدور في ذهنك اليوم؟</h3>
             <form id="new-post-form">
@@ -62,14 +60,12 @@
             </form>
         </section>
 
-        <!-- موجز منشورات المجتمع -->
         <section id="posts-feed" class="posts-list">
             <div class="muted-text" style="text-align: center; padding: 30px;">جاري تحميل محتوى المجتمع...</div>
         </section>
 
     </main>
 
-    <!-- نافذة الحسابات وتسجيل الدخول الموحدة -->
     <div id="auth-modal" class="modal hidden">
         <div class="modal-card">
             <button class="modal-close" id="btn-close-auth">&times;</button>
@@ -89,12 +85,11 @@
             </form>
             
             <div class="auth-switch">
-                <span id="auth-switch-text">ليس لديك حساب؟ <span id="toggle-auth-mode">انضم إلينا بإنشاء حساب جديد</span></span>
+                <span id="auth-switch-text">ليس لديك حساب؟ <span id="toggle-auth-mode" style="color:var(--primary); cursor:pointer; font-weight:700;">انضم إلينا بإنشاء حساب جديد</span></span>
             </div>
         </div>
     </div>
 
-    <!-- نافذة تعديل المنشورات -->
     <div id="edit-modal" class="modal hidden">
         <div class="modal-card">
             <button class="modal-close" id="btn-close-edit">&times;</button>
