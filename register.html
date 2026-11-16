@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إنشاء حساب جديد | Nexa Social</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+    <div class="auth-container">
+        <div class="card">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <a href="index.html" style="text-decoration:none; color:var(--primary); font-weight:900; font-size:1.5rem;">Nexa Social</a>
+                <p class="muted-text" style="margin-top: 6px;">انضم إلى مجتمعنا وأنشئ ملفك الشخصي</p>
+            </div>
+
+            <div id="reg-alert" class="alert hidden"></div>
+
+            <form id="register-form">
+                <div class="form-group">
+                    <label>الاسم الكامل</label>
+                    <input type="text" id="reg-name" placeholder="مثال: أحمد محمد" required>
+                </div>
+                <div class="form-group">
+                    <label>اسم المستخدم (Username) - فريد ولا يتكرر</label>
+                    <input type="text" id="reg-username" placeholder="ahmed_99" pattern="[a-zA-Z0-9_]+" title="حروف إنجليزية وأرقام فقط بدون مسافات" required>
+                </div>
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <input type="email" id="reg-email" placeholder="example@mail.com" required>
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <input type="password" id="reg-password" minlength="6" placeholder="6 أحرف على الأقل" required>
+                </div>
+                <button type="submit" id="btn-register" class="btn btn-primary btn-block">إنشاء الحساب وإرسال التحقق</button>
+            </form>
+
+            <p style="text-align: center; margin-top: 20px; font-size: 0.9rem;">
+                لديك حساب بالفعل؟ <a href="login.html" style="color: var(--primary); font-weight: 700;">تسجيل الدخول</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        const sb = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
+        const regAlert = document.getElementById('reg-alert');
+
+        function showAlert(msg, isError = true) {
+            regAlert.textContent = msg;
+            regAlert.className = isError ? 'alert alert-error' : 'alert alert-success';
+            regAlert.classList.remove('hidden');
+        }
+
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fullName = document.getElementById('reg-name').value.trim();
+            const username = document.getElementById('reg-username').value.trim().toLowerCase();
+            const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-password').value;
+
+            // 1. التحقق من أن اسم المستخدم غير محجوز مسبقاً
+            const { data: existingUser } = await sb.from('profiles').select('username').eq('username', username).maybeSingle();
+            if (existingUser) {
+                showAlert('عذراً، اسم المستخدم (@' + username + ') مستخدم بالفعل! اختر اسماً آخر.');
+                return;
+            }
+
+            // 2. إنشاء الحساب في Supabase Auth
+            const { data, error } = await sb.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: { full_name: fullName, username: username }
+                }
+            });
+
+            if (error) {
+                showAlert('خطأ في التسجيل: ' + error.message);
+                return;
+            }
+
+            // 3. حفظ بيانات البروفايل في جدول profiles
+            if (data.user) {
+                const role = (email === SUPABASE_CONFIG.ADMIN_EMAIL) ? 'admin' : 'user';
+                await sb.from('profiles').upsert([{
+                    id: data.user.id,
+                    full_name: fullName,
+                    username: username,
+                    role: role
+                }]);
+            }
+
+            showAlert('تم إنشاء الحساب! يرجى فحص بريدك الإلكتروني لتأكيد الحساب ثم تسجيل الدخول.', false);
+            document.getElementById('register-form').reset();
+        });
+    </script>
+</body>
+</html>
