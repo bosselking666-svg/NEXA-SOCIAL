@@ -58,10 +58,7 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             const { data: { session } } = await sb.auth.getSession();
-            if (!session) {
-                window.location.href = 'login.html';
-                return;
-            }
+            if (!session) { window.location.href = 'login.html'; return; }
             currentUser = session.user;
 
             const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
@@ -76,7 +73,6 @@
             }
         });
 
-        // تحويل الصورة المختارة لمعاينة وحفظ
         document.getElementById('avatar-file').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -100,13 +96,8 @@
             }).eq('id', currentUser.id);
 
             const alertBox = document.getElementById('prof-alert');
-            if (error) {
-                alertBox.textContent = 'حدث خطأ أثناء الحفظ: ' + error.message;
-                alertBox.className = 'alert alert-error';
-            } else {
-                alertBox.textContent = 'تم تحديث ملفك الشخصي بنجاح!';
-                alertBox.className = 'alert alert-success';
-            }
+            alertBox.textContent = error ? 'خطأ: ' + error.message : 'تم تحديث ملفك الشخصي بنجاح!';
+            alertBox.className = error ? 'alert alert-error' : 'alert alert-success';
             alertBox.classList.remove('hidden');
         });
     </script>
