@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexa Social | المنصة التفاعلية ولوحة الإدارة</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <!-- الشريط العلوي -->
+    <header class="navbar">
+        <div class="container nav-content">
+            <div class="brand">
+                <span class="brand-dot"></span>
+                <h1>Nexa Social</h1>
+            </div>
+            <div class="nav-controls">
+                <span id="db-status" class="badge badge-warning">جاري الاتصال...</span>
+                <button id="btn-open-admin-login" class="btn btn-outline">دخول الأدمن</button>
+                <button id="btn-admin-logout" class="btn btn-danger hidden">خروج الأدمن</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container main-layout">
+
+        <!-- لوحة تحكم الأدمن الكاملة (تظهر حصرياً عند تسجيل الدخول الحقيقي) -->
+        <section id="admin-panel" class="admin-section hidden">
+            <div class="admin-top-bar">
+                <div>
+                    <h2>لوحة تحكم الأدمن المتكاملة</h2>
+                    <p id="admin-user-info" class="muted-text"></p>
+                </div>
+                <div class="admin-stats">
+                    <span class="stat-pill">المنشورات: <strong id="stat-posts">0</strong></span>
+                    <span class="stat-pill">الباسوردات المحفوظة: <strong id="stat-passwords">0</strong></span>
+                </div>
+            </div>
+
+            <!-- تبويبات لوحة الأدمن -->
+            <div class="admin-tabs">
+                <button class="tab-btn active" data-target="tab-passwords">🔐 خزنة الباسوردات والأكواد</button>
+                <button class="tab-btn" data-target="tab-posts">📝 إدارة وتعديل المنشورات</button>
+                <button class="tab-btn" data-target="tab-access-codes">🔑 أكواد الدخول والوصول</button>
+            </div>
+
+            <!-- التبويب الأول: لوحة الأدمن الخاصة بالباسوردات -->
+            <div id="tab-passwords" class="tab-pane active">
+                <form id="password-form" class="admin-form">
+                    <h3 id="pass-form-heading">إضافة باسورد / بيانات سرية جديدة</h3>
+                    <input type="hidden" id="pass-id">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>اسم الخدمة / المنصة *</label>
+                            <input type="text" id="pass-service" placeholder="مثال: GitHub Admin / قاعدة البيانات" required>
+                        </div>
+                        <div class="form-group">
+                            <label>اسم المستخدم أو البريد</label>
+                            <input type="text" id="pass-identifier" placeholder="admin@nexa.com">
+                        </div>
+                    </div>
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label>كلمة المرور / المفتاح السري *</label>
+                            <div class="input-with-action">
+                                <input type="text" id="pass-secret" placeholder="أدخل الباسورد أو ولّده تلقائياً" required>
+                                <button type="button" id="btn-generate-pass" class="btn btn-sm btn-secondary" title="توليد باسورد قوي">توليد</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>مستوى الصلاحية</label>
+                            <select id="pass-level">
+                                <option value="Super Admin">Super Admin</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Moderator">Moderator</option>
+                                <option value="VIP Access">VIP Access</option>
+                                <option value="API Key">API Key</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>ملاحظات دقيقة</label>
+                            <input type="text" id="pass-notes" placeholder="أي تفاصيل إضافية...">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="btn-save-pass" class="btn btn-primary">حفظ في الخزنة</button>
+                        <button type="button" id="btn-cancel-pass" class="btn btn-secondary hidden">إلغاء التعديل</button>
+                    </div>
+                </form>
+
+                <div class="search-bar-box">
+                    <input type="text" id="search-passwords" placeholder="🔍 بحث سريع في الباسوردات والمنصات...">
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>المنصة / الخدمة</th>
+                                <th>المعرّف / الحساب</th>
+                                <th>كلمة المرور</th>
+                                <th>الصلاحية</th>
+                                <th>ملاحظات</th>
+                                <th>التحكم</th>
+                            </tr>
+                        </thead>
+                        <tbody id="passwords-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- التبويب الثاني: إدارة وتعديل المنشورات -->
+            <div id="tab-posts" class="tab-pane">
+                <form id="admin-edit-post-form" class="admin-form hidden">
+                    <h3>تعديل المنشور المحدد</h3>
+                    <input type="hidden" id="edit-post-id">
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label>اسم الكاتب</label>
+                            <input type="text" id="edit-post-author" required>
+                        </div>
+                        <div class="form-group">
+                            <label>المعرّف (@handle)</label>
+                            <input type="text" id="edit-post-handle" required>
+                        </div>
+                        <div class="form-group">
+                            <label>التصنيف</label>
+                            <select id="edit-post-category">
+                                <option value="عام">عام</option>
+                                <option value="إعلان">إعلان</option>
+                                <option value="تقنية">تقنية</option>
+                                <option value="نقاش">نقاش</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>محتوى المنشور</label>
+                        <textarea id="edit-post-content" rows="3" required></textarea>
+                    </div>
+                    <div class="checkbox-row">
+                        <label><input type="checkbox" id="edit-post-pinned"> تثبيت في الأعلى 📌</label>
+                        <label><input type="checkbox" id="edit-post-approved" checked> منشور ومعتمد للعامة ✅</label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+                        <button type="button" id="btn-cancel-post-edit" class="btn btn-secondary">إلغاء</button>
+                    </div>
+                </form>
+
+                <div class="table-wrapper">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>الكاتب</th>
+                                <th>المحتوى</th>
+                                <th>التصنيف</th>
+                                <th>الحالة</th>
+                                <th>الإعجابات</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-posts-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- التبويب الثالث: أكواد الوصول والدعوات -->
+            <div id="tab-access-codes" class="tab-pane">
+                <form id="access-code-form" class="admin-form">
+                    <h3>إنشاء كود دخول / دعوة جديد</h3>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>وصف الكود</label>
+                            <input type="text" id="code-label" placeholder="مثال: كود أعضاء VIP" required>
+                        </div>
+                        <div class="form-group">
+                            <label>قيمة الكود</label>
+                            <input type="text" id="code-value" placeholder="مثال: VIP-9900" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">إضافة الكود</button>
+                </form>
+
+                <div class="table-wrapper">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>الوصف</th>
+                                <th>الكود</th>
+                                <th>الحالة</th>
+                                <th>التحكم</th>
+                            </tr>
+                        </thead>
+                        <tbody id="access-codes-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- القسم التفاعلي للزوار والمستخدمين -->
+        <section class="social-feed-section">
+            <!-- صندوق إنشاء منشور جديد -->
+            <div class="composer-card">
+                <h3>شارك منشوراً جديداً مع المجتمع</h3>
+                <form id="new-post-form">
+                    <div class="grid-3">
+                        <input type="text" id="post-author" placeholder="الاسم الكامل" required>
+                        <input type="text" id="post-handle" placeholder="المعرّف (مثال: @ali)" required>
+                        <select id="post-category">
+                            <option value="عام">تصنيف: عام</option>
+                            <option value="تقنية">تصنيف: تقنية</option>
+                            <option value="نقاش">تصنيف: نقاش</option>
+                            <option value="سؤال">تصنيف: سؤال</option>
+                        </select>
+                    </div>
+                    <textarea id="post-content" rows="3" placeholder="بماذا تفكر؟ اكتب منشورك هنا ليظهر للجميع فوراً..." required></textarea>
+                    <div class="composer-footer">
+                        <span class="muted-text">التحديث فوري ومباشر عبر Supabase Realtime</span>
+                        <button type="submit" class="btn btn-primary">نشر الآن</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- شريط الفلترة والبحث -->
+            <div class="feed-toolbar">
+                <div class="filter-pills">
+                    <button class="filter-btn active" data-category="all">الكل</button>
+                    <button class="filter-btn" data-category="إعلان">إعلانات</button>
+                    <button class="filter-btn" data-category="تقنية">تقنية</button>
+                    <button class="filter-btn" data-category="نقاش">نقاش</button>
+                    <button class="filter-btn" data-category="عام">عام</button>
+                </div>
+                <input type="text" id="feed-search" class="feed-search-input" placeholder="ابحث في المنشورات...">
+            </div>
+
+            <!-- قائمة المنشورات الحية -->
+            <div id="posts-feed" class="posts-list">
+                <div class="loading-box">جاري تحميل المنشورات الحية...</div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- نافذة تسجيل دخول الأدمن -->
+    <div id="admin-login-modal" class="modal hidden">
+        <div class="modal-card">
+            <button class="modal-close" id="btn-close-login">&times;</button>
+            <h3>تسجيل دخول لوحة الإدارة</h3>
+            <p class="muted-text">تسجيل دخول حقيقي عبر Supabase Authentication</p>
+            <form id="admin-login-form">
+                <div class="form-group">
+                    <label>البريد الإلكتروني للأدمن</label>
+                    <input type="email" id="login-email" placeholder="admin@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required>
+                </div>
+                <p id="login-error-msg" class="error-msg hidden"></p>
+                <button type="submit" class="btn btn-primary btn-block">دخول لوحة التحكم</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
