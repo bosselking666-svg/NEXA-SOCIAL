@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الأصدقاء والرسائل الخاصة | Nexa Social</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="container nav-content">
+            <a href="index.html" class="brand">
+                <span class="brand-dot"></span>
+                <h1>Nexa Social</h1>
+            </a>
+            <a href="index.html" class="btn btn-secondary btn-sm">← العودة للمجتمع</a>
+        </div>
+    </header>
+
+    <main class="container">
+        
+        <!-- قسم اكتشاف الأعضاء وإرسال طلبات صداقة -->
+        <section class="card">
+            <h3 style="margin-bottom: 12px;">🔍 اكتشف أعضاء المجتمع وأضف أصدقاء</h3>
+            <div id="all-users-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <span class="muted-text">جاري تحميل الأعضاء...</span>
+            </div>
+        </section>
+
+        <!-- قسم طلبات الصداقة الواردة -->
+        <section class="card" id="requests-section">
+            <h3 style="margin-bottom: 12px;">📩 طلبات الصداقة الواردة</h3>
+            <div id="friend-requests-list">
+                <span class="muted-text">لا توجد طلبات معلقة.</span>
+            </div>
+        </section>
+
+        <!-- قسم الدردشة الخاصة مع الأصدقاء -->
+        <section class="card">
+            <h3 style="margin-bottom: 14px;">💬 الرسائل الخاصة مع الأصدقاء</h3>
+            <div class="chat-grid">
+                <div>
+                    <h4 style="margin-bottom: 8px; font-size:0.9rem;">قائمة أصدقائك:</h4>
+                    <div id="accepted-friends-list" style="display:flex; flex-direction:column; gap:8px;">
+                        <span class="muted-text">لا يوجد أصدقاء بعد.</span>
+                    </div>
+                </div>
+                <div>
+                    <div id="chat-header" style="font-weight:800; margin-bottom:8px; color:var(--primary);">اختر صديقاً لبدء المحادثة</div>
+                    <div id="chat-messages" class="chat-box"></div>
+                    <form id="send-dm-form" class="hidden" style="display:flex; gap:8px; margin-top:10px;">
+                        <input type="text" id="dm-input" placeholder="اكتب رسالتك الخاصة هنا..." required>
+                        <button type="submit" class="btn btn-primary">إرسال</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="config.js"></script>
+    <script>
+        const sb = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
+        let currentUser = null;
+        let profilesMap = {};
+        let selectedFriendId = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentUser = session.user;
+            await loadFriendsSystem();
+        });
+
+        async function loadFriendsSystem() {
+            const [profRes, friendRes] = await Promise.all([
+                sb.from('profiles').select('*'),
+                sb.from('friendships').select('*').or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+            ]);
+
+            const allProfiles = profRes.data || [];
+            const friendships = friendRes.data || [];
+
+            profilesMap = {};
+            allProfiles.forEach(p => { profilesMap[p.id] = p; });
+
+            // 1. عرض طلبات الصداقة الواردة
+            const incoming = friendships.filter(f => f.receiver_id === currentUser.id && f.status === 'pending');
+            const reqBox = document.getElementById('friend-requests-list');
+            reqBox.innerHTML = incoming.length ? incoming.map(req => {
+                const sender = profilesMap[req.sender_id] || { full_name: 'مستخدم', username: 'user' };
+                return `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-main); padding:10px; border-radius:10px; margin-bottom:8px;">
+                        <span><strong>${sender.full_name}</strong> (@${sender.username})</span>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn btn-success btn-sm" onclick="acceptFriend('${req.id}')">قبول الصداقة</button>
+                            <button class="btn btn-danger btn-sm" onclick="removeFriend('${req.id}')">رفض</button>
+                        </div>
+                    </div>
+                `;
+            }).join('') : '<span class="muted-text">لا توجد طلبات صداقة جديدة.</span>';
+
+            // 2. عرض الأصدقاء المقبولين للدردشة
+            const accepted = friendships.filter(f => f.status === 'accepted');
+            const friendsBox = document.getElementById('accepted-friends-list');
+            friendsBox.innerHTML = accepted.length ? accepted.map(f => {
+                const friendId = (f.sender_id === currentUser.id) ? f.receiver_id : f.sender_id;
+                const friendProf = profilesMap[friendId] || { full_name: 'صديق', username: 'friend' };
+                return `
+                    <button class="btn btn-secondary btn-sm" style="justify-content:flex-start;" onclick="openChat('${friendId}')">
+                        👤 ${friendProf.full_name} (@${friendProf.username})
+                    </button>
+                `;
+            }).join('') : '<span class="muted-text">أضف أصدقاء من القائمة أعلاه لتبدأ الدردشة.</span>';
+
+            // 3. عرض باقي الأعضاء لإرسال طلبات صداقة
+            const usersBox = document.getElementById('all-users-list');
+            const otherUsers = allProfiles.filter(p => p.id !== currentUser.id);
+            usersBox.innerHTML = otherUsers.map(u => {
+                const existing = friendships.find(f => f.sender_id === u.id || f.receiver_id === u.id);
+                let actionBtn = `<button class="btn btn-primary btn-sm" onclick="sendFriendRequest('${u.id}')">+ إضافة صديق</button>`;
+                if (existing) {
+                    if (existing.status === 'accepted') actionBtn = `<span class="badge badge-success">أصدقاء ✓</span>`;
+                    else actionBtn = `<span class="badge badge-warning">طلب معلق</span>`;
+                }
+                return `
+                    <div style="background:var(--bg-main); border:1px solid var(--border-color); padding:10px 14px; border-radius:12px; display:flex; align-items:center; gap:10px;">
+                        <div>
+                            <div style="font-weight:700;">${u.full_name} ${u.role === 'admin' ? '🛡️' : ''}</div>
+                            <div class="muted-text">@${u.username}</div>
+                        </div>
+                        ${actionBtn}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.sendFriendRequest = async (receiverId) => {
+            await sb.from('friendships').insert([{ sender_id: currentUser.id, receiver_id: receiverId, status: 'pending' }]);
+            await loadFriendsSystem();
+        };
+
+        window.acceptFriend = async (id) => {
+            await sb.from('friendships').update({ status: 'accepted' }).eq('id', id);
+            await loadFriendsSystem();
+        };
+
+        window.removeFriend = async (id) => {
+            await sb.from('friendships').delete().eq('id', id);
+            await loadFriendsSystem();
+        };
+
+        window.openChat = async (friendId) => {
+            selectedFriendId = friendId;
+            const friend = profilesMap[friendId];
+            document.getElementById('chat-header').textContent = `محادثة خاصة مع: ${friend.full_name}`;
+            document.getElementById('send-dm-form').classList.remove('hidden');
+            await loadMessages();
+        };
+
+        async function loadMessages() {
+            if (!selectedFriendId) return;
+            const { data: msgs } = await sb.from('private_messages')
+                .select('*')
+                .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${currentUser.id})`)
+                .order('created_at', { ascending: true });
+
+            const chatBox = document.getElementById('chat-messages');
+            chatBox.innerHTML = (msgs || []).map(m => {
+                const isMine = m.sender_id === currentUser.id;
+                return `<div class="msg-bubble ${isMine ? 'msg-sent' : 'msg-received'}">${m.message}</div>`;
+            }).join('');
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        document.getElementById('send-dm-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!selectedFriendId) return;
+            const input = document.getElementById('dm-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            await sb.from('private_messages').insert([{
+                sender_id: currentUser.id,
+                receiver_id: selectedFriendId,
+                message: text
+            }]);
+            input.value = '';
+            await loadMessages();
+        });
+    </script>
+</body>
+</html>
