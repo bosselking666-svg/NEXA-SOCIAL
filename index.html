@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexa Social | لوحة الإدارة والمنصة التفاعلية</title>
+    <title>Nexa Social | منصة تفاعلية عصرية</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
 </head>
@@ -17,132 +17,78 @@
             </div>
             <div class="nav-controls">
                 <span id="db-status" class="badge badge-warning">جاري الاتصال...</span>
-                <button id="btn-open-admin-login" class="btn btn-outline">دخول الأدمن</button>
-                <button id="btn-admin-logout" class="btn btn-danger hidden">خروج</button>
+                <button id="btn-open-login" class="btn btn-outline btn-sm">حساب / دخول</button>
+                <button id="btn-logout" class="btn btn-danger btn-sm hidden">خروج</button>
             </div>
         </div>
     </header>
 
-    <main class="container main-layout">
+    <main class="container" style="padding-top: 24px;">
 
-        <!-- لوحة تحكم الأدمن (تظهر عند تسجيل الدخول) -->
-        <section id="admin-panel" class="admin-section hidden">
-            <div class="admin-top-bar">
-                <div>
-                    <h2>لوحة تحكم الأدمن</h2>
-                    <p id="admin-user-info" class="muted-text"></p>
+        <!-- صندوق إنشاء منشور جديد -->
+        <section class="composer-card">
+            <h3>شارك فكرتك مع المجتمع</h3>
+            <form id="new-post-form">
+                <div class="grid-2">
+                    <input type="text" id="post-author" placeholder="اسمك الكريم" required>
+                    <input type="text" id="post-handle" placeholder="@username" required>
                 </div>
-                <div class="admin-stats">
-                    <span class="badge badge-success">المنشورات: <strong id="stat-posts">0</strong></span>
-                    <span class="badge badge-warning">الباسوردات: <strong id="stat-passwords">0</strong></span>
+                <textarea id="post-content" rows="3" placeholder="ما الذي يجول في خاطرك؟..." required></textarea>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                    <select id="post-category" style="max-width: 150px;">
+                        <option value="عام">عام</option>
+                        <option value="تقنية">تقنية</option>
+                        <option value="نقاش">نقاش</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">نشر المنشور</button>
                 </div>
-            </div>
-
-            <div class="admin-tabs">
-                <button class="tab-btn active" data-target="tab-passwords">🔐 خزنة الباسوردات</button>
-                <button class="tab-btn" data-target="tab-posts">📝 إدارة المنشورات</button>
-            </div>
-
-            <!-- خزنة الباسوردات -->
-            <div id="tab-passwords" class="tab-pane active">
-                <form id="password-form" class="admin-form">
-                    <h3>إضافة باسورد أو مفتاح جديد</h3>
-                    <input type="hidden" id="pass-id">
-                    <div class="grid-2">
-                        <input type="text" id="pass-service" placeholder="اسم الخدمة (مثال: GitHub)" required>
-                        <input type="text" id="pass-identifier" placeholder="اسم المستخدم / البريد">
-                    </div>
-                    <div class="grid-3">
-                        <div class="input-with-action">
-                            <input type="text" id="pass-secret" placeholder="كلمة المرور" required>
-                            <button type="button" id="btn-generate-pass" class="btn btn-sm btn-secondary">توليد</button>
-                        </div>
-                        <select id="pass-level">
-                            <option value="Admin">Admin</option>
-                            <option value="Super Admin">Super Admin</option>
-                            <option value="VIP">VIP</option>
-                        </select>
-                        <input type="text" id="pass-notes" placeholder="ملاحظات...">
-                    </div>
-                    <button type="submit" class="btn btn-primary">حفظ في الخزنة</button>
-                </form>
-
-                <div class="table-wrapper">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>الخدمة</th>
-                                <th>الحساب</th>
-                                <th>كلمة المرور</th>
-                                <th>الصلاحية</th>
-                                <th>ملاحظات</th>
-                                <th>تحكم</th>
-                            </tr>
-                        </thead>
-                        <tbody id="passwords-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- إدارة المنشورات -->
-            <div id="tab-posts" class="tab-pane">
-                <div class="table-wrapper">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>الكاتب</th>
-                                <th>المحتوى</th>
-                                <th>الإعجابات</th>
-                                <th>تحكم</th>
-                            </tr>
-                        </thead>
-                        <tbody id="admin-posts-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
+            </form>
         </section>
 
-        <!-- المنصة التفاعلية للزوار -->
-        <section class="social-section">
-            <div class="composer-card">
-                <h3>شارك منشوراً جديداً</h3>
-                <form id="new-post-form">
-                    <div class="grid-3">
-                        <input type="text" id="post-author" placeholder="اسمك" required>
-                        <input type="text" id="post-handle" placeholder="@username" required>
-                        <select id="post-category">
-                            <option value="عام">عام</option>
-                            <option value="تقنية">تقنية</option>
-                        </select>
-                    </div>
-                    <textarea id="post-content" rows="3" placeholder="بماذا تفكر؟..." required></textarea>
-                    <button type="submit" class="btn btn-primary">نشر الآن</button>
-                </form>
-            </div>
-
-            <div id="posts-feed" class="posts-list">
-                <div class="muted-text">جاري تحميل المنشورات...</div>
-            </div>
+        <!-- موجز المنشورات -->
+        <section id="posts-feed" class="posts-list">
+            <div class="muted-text" style="text-align: center; padding: 20px;">جاري تحميل المنشورات...</div>
         </section>
 
     </main>
 
-    <!-- نافذة تسجيل الدخول -->
-    <div id="admin-login-modal" class="modal hidden">
+    <!-- نافذة تسجيل الدخول / إنشاء حساب -->
+    <div id="auth-modal" class="modal hidden">
         <div class="modal-card">
-            <button class="modal-close" id="btn-close-login">&times;</button>
-            <h3>دخول لوحة التحكم</h3>
-            <form id="admin-login-form">
+            <button class="modal-close" id="btn-close-auth">&times;</button>
+            <h3 id="auth-modal-title" style="margin-bottom: 16px;">تسجيل الدخول</h3>
+            
+            <form id="auth-form">
                 <div class="form-group">
                     <label>البريد الإلكتروني</label>
-                    <input type="email" id="login-email" required>
+                    <input type="email" id="auth-email" required>
                 </div>
                 <div class="form-group">
                     <label>كلمة المرور</label>
-                    <input type="password" id="login-password" required>
+                    <input type="password" id="auth-password" required>
                 </div>
-                <p id="login-error-msg" class="error-msg hidden"></p>
-                <button type="submit" class="btn btn-primary btn-block">دخول</button>
+                <p id="auth-error" class="error-msg hidden"></p>
+                <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-block" style="margin-top: 10px;">دخول</button>
+            </form>
+            
+            <div class="auth-switch">
+                <span id="auth-switch-text">ليس لديك حساب؟ <span id="toggle-auth-mode">إنشاء حساب جديد</span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة تعديل منشور -->
+    <div id="edit-modal" class="modal hidden">
+        <div class="modal-card">
+            <button class="modal-close" id="btn-close-edit">&times;</button>
+            <h3 style="margin-bottom: 16px;">تعديل المنشور</h3>
+            <form id="edit-post-form">
+                <input type="hidden" id="edit-post-id">
+                <div class="form-group">
+                    <label>محتوى المنشور</label>
+                    <textarea id="edit-post-content" rows="4" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">حفظ التعديلات</button>
             </form>
         </div>
     </div>
